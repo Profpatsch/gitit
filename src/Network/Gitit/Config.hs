@@ -1,4 +1,8 @@
 {-# LANGUAGE CPP, FlexibleContexts, ScopedTypeVariables, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE MultiWayIf #-}
 {-
 Copyright (C) 2009 John MacFarlane <jgm@berkeley.edu>
 
@@ -34,11 +38,22 @@ import Network.Gitit.MetaInformation (getDataFileName)
 import System.Log.Logger (logM, Priority(..))
 import System.IO (hPutStrLn, stderr)
 import System.Exit (ExitCode(..), exitWith)
+import Data.Either (partitionEithers)
+import Data.Function ((&))
+import Data.Functor ((<&>))
 import qualified Data.Map as M
+import qualified Data.Aeson as Json
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List (intercalate, foldl')
 import Data.Char (toLower, toUpper, isAlphaNum)
+import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
 import Data.Text (Text)
+import qualified Data.Text.Lazy.Builder as T.Builder
+import qualified Data.Text.Lazy as T.Lazy
+import qualified Data.Text.Lazy.Builder.Int as T.Builder.Int
+import qualified Data.Text.Lazy.Builder.Scientific as Scientific
 import System.FilePath ((</>))
 import Text.Pandoc hiding (ERROR, WARNING, MathJax, MathML, WebTeX, getDataFileName)
 import qualified Control.Exception as E
@@ -60,7 +75,7 @@ getConfigFromFiles :: [FilePath] -> IO Config
 getConfigFromFiles fnames = do
   -- we start with default values from the data file
   cp <- getDataFileName "data/default.conf"
-  cfgmap <- foldM alterConfigMap mempty (cp : fnames)
+  cfgmap <- foldM alterConfigMapByNewFile mempty (cp : fnames)
   res <- runExceptT $ extractConfig cfgmap
   case res of
     Right conf -> pure conf
@@ -70,18 +85,67 @@ getConfigFromFiles fnames = do
 
 type ConfigMap = M.Map (Text, Text) Text
 
-alterConfigMap :: ConfigMap -> FilePath -> IO ConfigMap
-alterConfigMap cfmap fname = do
+-- | Parse the config file and return a map from section/field to value.
+-- The config file is first checked to see if it’s a valid json value.
+--
+-- If yes, use the json parser, otherwise use the old style parser for backwards compatibility.
+--
+-- The JSON format mirrors the old style format.
+-- Any key that is in the outer object is put into the [DEFAULT] section.
+-- Any key that is surrounded by `[` and `]` is a section name, and the keys inside are the fields in the section.
+--
+-- Example:
+--
+-- @
+-- {
+--   "repository-type": "git",
+--   "[GitHub]": {
+--     "oauthclientid": "clientid",
+--     "oauthclientsecret": "client
+--   }
+-- }
+-- @
+
+alterConfigMapByNewFile :: ConfigMap -> FilePath -> IO ConfigMap
+alterConfigMapByNewFile cfmap fname = do
+  eJsonVal <- pIsJsonValue fname
+  secs <- case eJsonVal of
+    Right val ->
+      case pSectionJson val of
+        Left err -> do
+          hPutStrLn stderr ("Error parsing gitit json config " <> fname <> ":\n" <> err)
+          exitWith (ExitFailure 1)
+        Right secs -> pure secs
+    Left _jsonErr -> do
+      eSecs <- readOldStyleConfig fname
+      case eSecs of
+        Left errOld -> do
+          hPutStrLn stderr ("Cannot parse " <> fname <> " as valid json value; tried parsing it as old-style gitit config instead but failed:\n" <> errOld)
+          exitWith (ExitFailure 1)
+        Right secs -> pure secs
+  pure $ alterConfigMap cfmap secs
+
+alterConfigMap :: ConfigMap -> [Section] -> ConfigMap
+alterConfigMap = foldl' go
+  where
+    go cfmap' (Section name fields) = foldl' (go' name) cfmap' fields
+    go' name cfmap' (k,v) = M.insert (name, k) v cfmap'
+
+readOldStyleConfig :: FilePath -> IO (Either String [Section])
+readOldStyleConfig fname = do
   contents <- readFileUTF8 fname
   let contents' = "[DEFAULT]\n" <> contents
   case parseConfig fname contents' of
     Left msg -> do
-      hPutStrLn stderr ("Error parsing config " <> fname <> ":\n" <> msg)
-      exitWith (ExitFailure 1)
-    Right secs -> pure $ foldl' go cfmap secs
-      where
-        go cfmap' (Section name fields) = foldl' (go' name) cfmap' fields
-        go' name cfmap' (k,v) = M.insert (name, k) v cfmap'
+      pure $ Left msg
+    Right secs -> pure $ Right secs
+
+pIsJsonValue :: FilePath -> IO (Either String Json.Value)
+pIsJsonValue fname = do
+  mval <- Json.eitherDecodeFileStrict fname
+  pure $ case mval of
+    Left err -> Left $ "Could not parse file as syntactically valid json value: " <> err
+    Right val -> Right val
 
 -- | Returns the default gitit configuration.
 getDefaultConfig :: IO Config
@@ -92,6 +156,54 @@ data Section = Section Text [(Text, Text)]
 
 parseConfig :: FilePath -> Text -> Either String [Section]
 parseConfig fname txt = either (Left . show) Right $ parse (many pSection) fname txt
+
+data SectionJson =
+  DefaultSection Text Text
+  | ThisSection Text [(Text, Text)]
+
+
+pSectionJson :: Json.Value -> Either String [Section]
+pSectionJson (Json.Object obj) = obj & KeyMap.toList
+  <&> (\case
+    (T.toUpper . Key.toText -> k, Json.Object sect) -> ThisSection k <$> pSectionFields k sect
+    (k, asJsonScalarText -> Just t) -> Right $ DefaultSection (k & Key.toText) t
+    (k, v) -> Left ["The value of toplevel field " <> (k & Key.toString) <> " has to be a json string, number, boolean, or object, but was: " <> show v]
+    )
+  & partitionEithers
+  & \case
+    ([], secs) -> secs & foldr go M.empty & M.toList <&> (\(name, fields) -> Section name fields) & Right
+      where
+        go (ThisSection name fields) acc = M.insert name fields acc
+        go (DefaultSection k v) acc = M.insertWith (++) "DEFAULT" [(k, v)] acc
+
+    (errs, _) -> Left $ intercalate "\n" $ concat errs
+  where
+pSectionJson _ = Left "The toplevel json value has to be a json object."
+
+asJsonScalarText :: Json.Value -> Maybe Text
+asJsonScalarText (Json.String t) = Just t
+asJsonScalarText (Json.Number n) = Just $ T.Lazy.toStrict $ T.Builder.toLazyText formatNumber
+  where
+    -- The scientific builder always adds a decimal point, which we don’t want for e.g. port numbers :)
+    formatNumber = if
+      | Scientific.isInteger n
+      , Just i <- Scientific.toBoundedInteger @Int n -> T.Builder.Int.decimal i
+      | otherwise ->  n & Scientific.scientificBuilder
+asJsonScalarText (Json.Bool True) = Just "true"
+asJsonScalarText (Json.Bool False) = Just "false"
+asJsonScalarText _ = Nothing
+
+pSectionFields :: Text -> Json.Object -> Either [String] [(Text, Text)]
+pSectionFields sec obj = obj
+   & KeyMap.toList
+  <&> (\case
+      (k, asJsonScalarText -> Just t) -> Right (k & Key.toText, t)
+      (k, v) -> Left $ "In Section " <> (sec & T.unpack) <> ": The value of field " <> (k & Key.toString) <> " has to be a json string, number, or boolean, but was: " <> show v
+      )
+  & partitionEithers
+  & \case
+    ([], fields) -> Right fields
+    (errs, _) -> Left errs
 
 pSection :: Parsec Text () Section
 pSection = do
@@ -313,7 +425,7 @@ extractGithubConfig cfgmap = do
                       case parseURI laxURIParserOptions (BS.pack s) of
                         Left e    -> throwError $ "couldn't parse url " ++ s
                                                      ++ " from (Github/" ++ T.unpack prop
-                                                     ++ "): " ++ show e
+                                                     ++ "): " ++ show e ++ ", url: " ++ s
                         Right uri -> return uri
 
 
