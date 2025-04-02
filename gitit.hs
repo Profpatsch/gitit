@@ -106,7 +106,7 @@ main = do
 
   -- start the server
   simpleHTTPWithSocket sock serverConf $ msum [ wiki conf
-                               , dir "_reloadTemplates" reloadTemplates
+                               , dir "_reloadTemplates" (reloadTemplates conf)
                                ]
 
 data ExitOpt
