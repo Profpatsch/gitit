@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 module Network.Gitit.Handlers (
                         handleAny
                       , debugHandler
-                      , randomPage
                       , discussPage
                       , createPage
                       , showActivity
@@ -77,7 +76,7 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString as S
 import Network.HTTP (urlEncodeVars)
 import Data.Time (getCurrentTime, addUTCTime)
-import Data.Time.Clock (diffUTCTime, UTCTime(..))
+import Data.Time.Clock (diffUTCTime)
 import Data.FileStore
 import System.Log.Logger (logM, Priority(..))
 import Text.Blaze.Html.Renderer.String as Blaze ( renderHtml )
@@ -113,21 +112,6 @@ debugHandler = withData $ \(params :: Params) -> do
   liftIO $ logM "gitit" DEBUG $ "Page = '" ++ page ++ "'\n" ++
               show params
   mzero
-
-randomPage :: Handler
-randomPage = do
-  fs <- getFileStore
-  base' <- getWikiBase
-  prunedFiles <- liftIO (index fs) >>= filterM isPageFile >>= filterM isNotDiscussPageFile
-  let pages = map dropExtension prunedFiles
-  if null pages
-     then error "No pages found!"
-     else do
-       secs <- liftIO (fmap utctDayTime getCurrentTime)
-       let newPage = pages !!
-                     (truncate (secs * 1000000) `mod` length pages)
-       seeOther (base' ++ urlForPage newPage) $ toResponse $
-         renderHtml $ p $ "Redirecting to a random page"
 
 discussPage :: Handler
 discussPage = do
