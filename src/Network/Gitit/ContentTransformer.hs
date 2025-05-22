@@ -320,12 +320,10 @@ applyWikiTemplate c = do
 -- | Converts Page to Pandoc, applies page transforms, and adds page
 -- title.
 pageToWikiPandoc :: Page -> ContentTransformer Pandoc
-pageToWikiPandoc page' =
-  pageToWikiPandoc' page' >>= addPageTitleToPandoc (pageTitle page')
-
-pageToWikiPandoc' :: Page -> ContentTransformer Pandoc
-pageToWikiPandoc' = applyPreParseTransforms >=>
-                     pageToPandoc >=> applyPageTransforms
+pageToWikiPandoc page' = applyPreParseTransforms page'
+                     >>= pageToPandoc
+                     >>= applyPageTransforms
+                     >>= addPageTitleToPandoc (pageTitle page')
 
 -- | Converts source text to Pandoc using default page type.
 pageToPandoc :: Page -> ContentTransformer Pandoc
