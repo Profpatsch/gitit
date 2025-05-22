@@ -4,6 +4,7 @@ let
   gitit = (import ./default.nix {});
 
 in pkgs.haskellPackages.shellFor {
+  withHoogle = true;
   packages = _hps: [
     gitit
   ];
