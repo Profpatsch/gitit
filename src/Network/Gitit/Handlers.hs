@@ -108,21 +108,21 @@ debugHandler :: Handler
 debugHandler = withData $ \(params :: Params) -> do
   req <- askRq
   liftIO $ logM "gitit" DEBUG (show req)
-  page <- getPage
+  page <- getPageNameFromPath
   liftIO $ logM "gitit" DEBUG $ "Page = '" ++ page ++ "'\n" ++
               show params
   mzero
 
 discussPage :: Handler
 discussPage = do
-  page <- getPage
+  page <- getPageNameFromPath
   base' <- getWikiBase
   seeOther (base' ++ urlForPage (if isDiscussPage page then page else ('@':page))) $
                      toResponse ("Redirecting to discussion page" :: String)
 
 createPage :: Handler
 createPage = do
-  page <- getPage
+  page <- getPageNameFromPath
   base' <- getWikiBase
   case page of
        ('_':_) -> mzero   -- don't allow creation of _index, etc.
@@ -328,13 +328,13 @@ searchResults = withData $ \(params :: Params) -> do
 
 showPageHistory :: Handler
 showPageHistory = withData $ \(params :: Params) -> do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   showHistory (pathForPage page $ defaultExtension cfg) page params
 
 showFileHistory :: Handler
 showFileHistory = withData $ \(params :: Params) -> do
-  file <- getPage
+  file <- getPageNameFromPath
   showHistory file file params
 
 intDataAttribute :: Tag -> Int -> Attribute
@@ -443,13 +443,13 @@ showActivity = withData $ \(params :: Params) -> do
 
 showPageDiff :: Handler
 showPageDiff = withData $ \(params :: Params) -> do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   showDiff (pathForPage page $ defaultExtension cfg) page params
 
 showFileDiff :: Handler
 showFileDiff = withData $ \(params :: Params) -> do
-  page <- getPage
+  page <- getPageNameFromPath
   showDiff page page params
 
 showDiff :: String -> String -> Params -> Handler
@@ -511,7 +511,7 @@ editPage' :: Params -> Handler
 editPage' params = do
   let rev = pRevision params  -- if this is set, we're doing a revert
   fs <- getFileStore
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   let getRevisionAndText = E.catch
         (do c <- liftIO $ retrieve fs (pathForPage page $ defaultExtension cfg) rev
@@ -572,7 +572,7 @@ editPage' params = do
 
 confirmDelete :: Handler
 confirmDelete = do
-  page <- getPage
+  page <- getPageNameFromPath
   fs <- getFileStore
   cfg <- getConfig
   -- determine whether there is a corresponding page, and if not whether there
@@ -603,7 +603,7 @@ confirmDelete = do
 
 deletePage :: Handler
 deletePage = withData $ \(params :: Params) -> do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   let file = pFileToDelete params
   mbUser <- getLoggedInUser
@@ -622,7 +622,7 @@ deletePage = withData $ \(params :: Params) -> do
 
 updatePage :: Handler
 updatePage = withData $ \(params :: Params) -> do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   mbUser <- getLoggedInUser
   (user, email) <- case mbUser of
@@ -774,7 +774,7 @@ categoryListPage = do
 
 expireCache :: Handler
 expireCache = do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   -- try it as a page first, then as an uploaded file
   expireCachedFile (pathForPage page $ defaultExtension cfg)

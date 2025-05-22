@@ -34,7 +34,7 @@ module Network.Gitit.Framework (
                                , guardBareBase
                                -- * Functions to get info from the request
                                , getPath
-                               , getPage
+                               , getPageNameFromPath
                                , getReferer
                                , getWikiBase
                                , uriPath
@@ -168,7 +168,7 @@ unlessNoEdit :: Handler
              -> Handler
 unlessNoEdit responder fallback = withData $ \(params :: Params) -> do
   cfg <- getConfig
-  page <- getPage
+  page <- getPageNameFromPath
   if page `elem` noEdit cfg
      then withMessages ("Page is locked." : pMessages params) fallback
      else responder
@@ -181,7 +181,7 @@ unlessNoDelete :: Handler
                -> Handler
 unlessNoDelete responder fallback = withData $ \(params :: Params) -> do
   cfg <- getConfig
-  page <- getPage
+  page <- getPageNameFromPath
   if page `elem` noDelete cfg
      then withMessages ("Page cannot be deleted." : pMessages params) fallback
      else responder
@@ -191,8 +191,8 @@ getPath :: ServerMonad m => m String
 getPath = liftM (intercalate "/" . rqPaths) askRq
 
 -- | Returns the current page name (derived from the path).
-getPage :: GititServerPart String
-getPage = do
+getPageNameFromPath :: GititServerPart String
+getPageNameFromPath = do
   conf <- getConfig
   path' <- getPath
   if null path'

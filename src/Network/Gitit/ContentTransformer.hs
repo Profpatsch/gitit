@@ -116,7 +116,7 @@ runPageTransformer :: ToMessage a
                => ContentTransformer a
                -> GititServerPart a
 runPageTransformer xform = withData $ \params -> do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   evalStateT xform  Context{ ctxFile = pathForPage page (defaultExtension cfg)
                            , ctxLayout = defaultPageLayout{
@@ -136,7 +136,7 @@ runFileTransformer :: ToMessage a
                => ContentTransformer a
                -> GititServerPart a
 runFileTransformer xform = withData $ \params -> do
-  page <- getPage
+  page <- getPageNameFromPath
   cfg <- getConfig
   evalStateT xform  Context{ ctxFile = id page
                            , ctxLayout = defaultPageLayout{
