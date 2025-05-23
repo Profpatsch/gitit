@@ -171,42 +171,42 @@ wikiHandlers =
   [ -- redirect /wiki -> /wiki/ when gitit is being served at /wiki
     -- so that relative wikilinks on the page will work properly:
     guardBareBase >> getWikiBase >>= \b -> movedPermanently (b ++ "/") (toResponse ())
-  , dir "_activity" showActivity
+  -- , dir "_activity" showActivity
   , dir "_go"       goToPage
-  , method GET >> dir "_search"   searchResults
+  -- , method GET >> dir "_search"   searchResults
   , dir "_upload"   $  do guard =<< return . uploadsAllowed =<< getConfig
                           msum [ method GET  >> authenticate ForModify uploadForm
                                  , method POST >> authenticate ForModify uploadFile ]
-  , dir "_index"    indexPage
-  , dir "_feed"     feedHandler
-  , dir "_category" categoryPage
-  , dir "_categories" categoryListPage
-  , dir "_expire"     expireCache
+  -- , dir "_index"    indexPage
+  -- , dir "_feed"     feedHandler
+  -- , dir "_category" categoryPage
+  -- , dir "_categories" categoryListPage
+  -- , dir "_expire"     expireCache
   , dir "_showraw"  $ msum
       [ showRawPage
       , guardPath isSourceCode >> showFileAsText ]
-  , dir "_history"  $ msum
-      [ showPageHistory
-      , guardPath isSourceCode >> showFileHistory ]
+  , dir "_history"  $  msum
+      [ authenticate ForModify showPageHistory
+      , guardPath isSourceCode >> authenticate ForModify showFileHistory ]
   , dir "_edit" $ authenticate ForModify (unlessNoEdit editPage showPage)
-  , dir "_diff" $ msum
-      [ showPageDiff
-      , guardPath isSourceCode >> showFileDiff ]
-  , dir "_discuss" discussPage
+  --, dir "_diff" $ msum
+  --    [ showPageDiff
+  --    , guardPath isSourceCode >> showFileDiff ]
+  -- , dir "_discuss" discussPage
   , dir "_delete" $ msum
       [ method GET  >>
           authenticate ForModify (unlessNoDelete confirmDelete showPage)
       , method POST >>
           authenticate ForModify (unlessNoDelete deletePage showPage) ]
   , dir "_preview" preview
-  , guardIndex >> indexPage
+  -- , guardIndex >> indexPage
   , method POST >> guardCommand "cancel" >> showPage
   , method POST >> guardCommand "update" >>
       authenticate ForModify (unlessNoEdit updatePage showPage)
   , showPage
   , guardPath isSourceCode >> method GET >> showHighlightedSource
   , handleAny
-  , notFound =<< (guardPath isPage >> createPage)
+  , notFound =<< (guardPath isPage >> notFoundPage)
   ]
 
 -- | Recompiles the gitit templates.

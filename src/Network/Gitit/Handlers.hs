@@ -26,6 +26,7 @@ module Network.Gitit.Handlers (
                       , debugHandler
                       , discussPage
                       , createPage
+                      , notFoundPage
                       , showActivity
                       , goToPage
                       , searchResults
@@ -144,6 +145,16 @@ createPage = do
                                   $ fromString ("Search for pages containing the text '" ++
                                     page ++ "'")])
                       ]
+
+notFoundPage :: Handler
+notFoundPage = do
+  page <- getPageNameFromPath
+  formattedPage defaultPageLayout{
+                    pgPageName = page
+                  , pgTabs = []
+                  , pgTitle = page
+                  }
+     $ p $ "Page does not exist my brotha"
 
 fileInput :: AttributeValue -> AttributeValue -> Html
 fileInput nameAndId val =  input ! type_ "file" ! Html5.Attr.id nameAndId ! name nameAndId ! value val
