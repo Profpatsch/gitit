@@ -181,7 +181,10 @@ showFileAsText = runFileTransformer rawTextResponse
 
 -- | Responds with rendered wiki page.
 showPage :: Handler
-showPage = runPageTransformer htmlViaPandoc
+showPage = msum [
+  guardParam pPlain >> runPageTransformer htmlViaPandocPlain,
+  runPageTransformer htmlViaPandoc
+  ]
 
 -- | Responds with highlighted source code.
 showHighlightedSource :: Handler
@@ -228,6 +231,20 @@ htmlViaPandoc = cachedHtml `mplus`
                       wikiDivify >=>
                       applyWikiTemplate >=>
                       cacheHtml))
+
+-- | Responds with the result of rendering the page to html, with no extra markup.
+-- TODO: use the cache as well?
+htmlViaPandocPlain :: ContentTransformer Response
+htmlViaPandocPlain = rawContents >>=
+                   maybe mzero return >>=
+                   contentsToPage >>=
+                   handleRedirects >>=
+                   either return
+                     (pageToWikiPandoc >=>
+                      addMathSupport >=>
+                      pandocToHtml >=>
+                      (ok . setContentType "text/html; charset=utf-8" . toResponse))
+
 
 -- | Responds with highlighted source code in a wiki
 -- page template.  Uses the cache when possible and

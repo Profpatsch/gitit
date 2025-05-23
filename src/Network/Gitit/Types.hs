@@ -342,6 +342,8 @@ data Params = Params { pUsername     :: String
                      , pForUser      :: Maybe String
                      , pSince        :: Maybe UTCTime
                      , pRaw          :: String
+                     -- | If this parameter is given, only the plain pandoc output html is returned, without any page chrome or metadata
+                     , pPlain        :: Bool
                      , pLimit        :: Int
                      , pPatterns     :: [String]
                      , pGotoPage     :: String
@@ -387,6 +389,7 @@ instance FromData Params where
                  `mplus` return Nothing  -- YYYY-mm-dd format
          ds <- look' "destination" `mplus` return ""
          ra <- look' "raw"            `mplus` return ""
+         pl <- (True <$ look' "plain")`mplus` return False
          lt <- lookRead "limit"       `mplus` return 100
          pa <- look' "patterns"       `mplus` return ""
          gt <- look' "gotopage"       `mplus` return ""
@@ -426,6 +429,7 @@ instance FromData Params where
                          , pSince        = si
                          , pDestination  = ds
                          , pRaw          = ra
+                         , pPlain        = pl
                          , pLimit        = lt
                          , pPatterns     = words pa
                          , pGotoPage     = gt

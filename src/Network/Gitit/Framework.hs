@@ -29,6 +29,7 @@ module Network.Gitit.Framework (
                                , unlessNoDelete
                                -- * Guards for routing
                                , guardCommand
+                               , guardParam
                                , guardPath
                                , guardIndex
                                , guardBareBase
@@ -315,6 +316,10 @@ guardCommand command = withData $ \(com :: Command) ->
   case com of
        Command (Just c) | c == command -> return ()
        _                               -> mzero
+
+guardParam :: (Params -> Bool) -> GititServerPart ()
+guardParam f = withData $ \(params :: Params) ->
+  unless (f params) mzero
 
 guardPath :: (String -> Bool) -> GititServerPart ()
 guardPath pred' = guardRq (pred' . rqUri)
