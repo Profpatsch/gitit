@@ -106,6 +106,7 @@ module Network.Gitit (
                      , getConfig
                      , queryGititState
                      , updateGititState
+                     , testWiki
                      )
 where
 import Network.Gitit.Types
@@ -221,3 +222,13 @@ runHandler = mapServerPartT . unpackReaderT
 unpackReaderT :: s -> UnWebT (ReaderT s IO) a -> UnWebT IO a
 unpackReaderT st uw = runReaderT uw st
 
+-- | Runs a simple wiki from the current directory, with default config.
+-- Can be used in ghci for testing the library.
+testWiki :: IO ()
+testWiki = do
+   conf <- getDefaultConfig
+   createStaticIfMissing conf
+   createTemplateIfMissing conf
+   createRepoIfMissing conf
+   initializeGititState conf
+   simpleHTTP nullConf{port = 9095} $ wiki conf
