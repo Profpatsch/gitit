@@ -395,14 +395,14 @@ loginForm dest = do
                  [ "If you do not have an account, "
                  , a ! href (fromString $ base' ++ "/_register?" ++
                      urlEncodeVars [("destination", encodeString dest)]) $ "click here to get one."
-                 ]) <>
+                 ]) {-<>
     (if null (mailCommand cfg)
        then mempty
        else p $ mconcat
                  [ "If you forgot your password, "
                  , a ! href (fromString $ base' ++ "/_resetPassword") $
                      "click here to get a new one."
-                 ])
+                 ])-}
 
 loginUserForm :: Handler
 loginUserForm = withData $ \params -> do
@@ -466,10 +466,10 @@ formAuthHandlers disableReg =
   [ Network.Gitit.Server.dir "_login"     $ Network.Gitit.Server.method GET  >> loginUserForm
   , Network.Gitit.Server.dir "_login"     $ Network.Gitit.Server.method POST >> withData loginUser
   , Network.Gitit.Server.dir "_logout"    $ Network.Gitit.Server.method GET  >> withData logoutUser
-  , Network.Gitit.Server.dir "_resetPassword"   $ Network.Gitit.Server.method GET  >> withData resetPasswordRequestForm
-  , Network.Gitit.Server.dir "_resetPassword"   $ Network.Gitit.Server.method POST >> withData resetPasswordRequest
-  , Network.Gitit.Server.dir "_doResetPassword" $ Network.Gitit.Server.method GET  >> withData resetPassword
-  , Network.Gitit.Server.dir "_doResetPassword" $ Network.Gitit.Server.method POST >> withData doResetPassword
+  -- , Network.Gitit.Server.dir "_resetPassword"   $ Network.Gitit.Server.method GET  >> withData resetPasswordRequestForm
+  -- , Network.Gitit.Server.dir "_resetPassword"   $ Network.Gitit.Server.method POST >> withData resetPasswordRequest
+  -- , Network.Gitit.Server.dir "_doResetPassword" $ Network.Gitit.Server.method GET  >> withData resetPassword
+  -- , Network.Gitit.Server.dir "_doResetPassword" $ Network.Gitit.Server.method POST >> withData doResetPassword
   , Network.Gitit.Server.dir "_user" currentUser
   ]
 
