@@ -260,7 +260,7 @@ uriPath = unwords . words . drop 1 . takeWhile (/='?')
 isPage :: String -> Bool
 isPage "" = False
 isPage ('_':_) = False
-isPage s = all (`notElem` "*?") s && not (".." `isInfixOf` s) && not ("/_" `isInfixOf` s)
+isPage s = all (`notElem` ("*?"::String)) s && not (".." `isInfixOf` s) && not ("/_" `isInfixOf` s)
 -- for now, we disallow @*@ and @?@ in page names, because git filestore
 -- does not deal with them properly, and darcs filestore disallows them.
 

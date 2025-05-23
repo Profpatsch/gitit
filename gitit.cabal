@@ -190,7 +190,8 @@ Library
     exposed-modules: Network.Gitit.Interface
     build-depends:   ghc, ghc-paths
     cpp-options:     -D_PLUGINS
-  default-extensions: CPP
+  default-extensions: CPP,
+                      OverloadedStrings
   default-language:  Haskell2010
   ghc-options:       -Wall -fno-warn-unused-do-bind
   ghc-prof-options:  -fprof-auto-exported

@@ -212,7 +212,7 @@ wikiHandlers =
 reloadTemplates :: Config -> ServerPart Response
 reloadTemplates cfg = do
   liftIO $ recompilePageTemplate cfg
-  ok $ toResponse "Page templates have been recompiled."
+  ok $ toResponse ("Page templates have been recompiled." :: String)
 
 -- | Converts a gitit Handler into a standard happstack ServerPart.
 runHandler :: WikiState -> Handler -> ServerPart Response
