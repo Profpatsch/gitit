@@ -21,26 +21,11 @@
     <!--[if IE]><link href="$base$/css/ie.css" rel="stylesheet" media="screen, projection" type="text/css" /><![endif]-->
   </head>
   <body>
-    <div id="doc3" class="yui-t1">
+    <div id="doc3">
         <div id="yui-main">
           <div id="maincol" class="yui-b">
-            $userbox()$
-            $tabs$
             $content()$
-            $footer()$
           </div>
-        </div>
-        <div id="sidebar" class="yui-b first">
-          $logo()$
-          $if(sitenav)$
-            $sitenav()$
-          $endif$
-          $if(pagetools)$
-            $pagetools()$
-          $endif$
-          $if(markuphelp)$
-            $markuphelp()$
-          $endif$
         </div>
     </div>
     $javascripts$
